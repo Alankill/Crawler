@@ -13,6 +13,7 @@ using System.Net.Security;
 using System.Text;
 using System.Collections;
 
+
 namespace SimpleCrawler.Crawler.WebCrawler
 {
     public class TYCCrawler : CrawlerBase
@@ -32,6 +33,12 @@ namespace SimpleCrawler.Crawler.WebCrawler
         {
            // Hashtable result =await LoginTYCC();
             string page = string.Empty;
+            await GetResultContent("");
+            //test
+
+            return page;
+
+            ///test
             try
             {
                 var request = (HttpWebRequest)WebRequest.Create("https://bj.tianyancha.com/search/ocE-e015-s1-la3");
@@ -137,37 +144,80 @@ namespace SimpleCrawler.Crawler.WebCrawler
 
         public async override Task<int> GetResultContent(string html)
         {
-            Match table = Regex.Match(html, @"class=""b-c-white search_result_container""[\s\S]*?class=""b-c-white clearfix position-rel mb30""");
+            //https://static.tianyancha.com/fonts-styles/css/34/343177a3/font.css
+            //https://static.tianyancha.com/fonts-styles/fonts/34/343177a3/tyc-num.ttf
+            //string cssurl = Regex.Match(html, @"https://static.tianyancha.com/fonts-styles/css\S*?.css").ToString().Replace("css/","fonts/").Replace("font.css", "tyc-num.ttf");
+            string cotent=await RequestByGet("https://static.tianyancha.com/fonts-styles/fonts/34/343177a3/tyc-num.ttf");
+            System.Drawing.
+            System.Drawing..PrivateFontCollection privateFonts = new System.Drawing.Text.PrivateFontCollection();
+            //privateFonts.AddFontFile("C:\\宋体.ttf");
+            
+
+
+           Match table = Regex.Match(html, @"class=""b-c-white search_result_container""[\s\S]*?class=""b-c-white clearfix position-rel mb30""");
             MatchCollection trlist = Regex.Matches(table.ToString(), @"<div data-id=""[\s\S] *?class=""pt15""");
             Regex titleReg = new Regex(@"=""projectTitle""[\s\S]*?>([\s\S]*?)<");
             Regex dateReg = new Regex(@"class=""td5""[\s\S]*>([\s\S]*?)</td>");
-
+            
             List<Company> listinfo = new List<Company>();
-            if (trlist.Count > 0)
-            {
-                foreach (var tr in trlist)
-                {
-                    Match Mtitle = titleReg.Match(tr.ToString());
-                    Match Mdate = dateReg.Match(tr.ToString());
-                    Infomation info = new Infomation();
-                    if (Mtitle.Success == true)
-                    {
-                        info.Title = Mtitle.Groups[1].ToString().Trim();
-                    }
-                    if (Mdate.Success == true)
-                    {
-                        DateTime publishDate;
-                        DateTime.TryParse(Mdate.Groups[1].ToString().Trim(), out publishDate);
-                        info.PublishDate = publishDate;
-                        info.CreateDate = DateTime.Now;
-                    }
-                    listinfo.Add(info);
-                }
-            }
-            await SaveToDB(listinfo);
+            //if (trlist.Count > 0)
+            //{
+            //    foreach (var tr in trlist)
+            //    {
+            //        Match Mtitle = titleReg.Match(tr.ToString());
+            //        Match Mdate = dateReg.Match(tr.ToString());
+            //        Infomation info = new Infomation();
+            //        if (Mtitle.Success == true)
+            //        {
+            //            info.Title = Mtitle.Groups[1].ToString().Trim();
+            //        }
+            //        if (Mdate.Success == true)
+            //        {
+            //            DateTime publishDate;
+            //            DateTime.TryParse(Mdate.Groups[1].ToString().Trim(), out publishDate);
+            //            info.PublishDate = publishDate;
+            //            info.CreateDate = DateTime.Now;
+            //        }
+            //        listinfo.Add(info);
+            //    }
+            //}
+            //await SaveToDB(listinfo);
             return listinfo.Count;
         }
 
+
+
+        public async Task<string> RequestByGet(string url)
+        {
+            string page = string.Empty;
+            try
+            {
+                var request = (HttpWebRequest)WebRequest.Create(url);
+                request.Headers["Upgrade-Insecure-Requests"] = "1";
+                request.UserAgent = "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36";
+                request.Accept = "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8";
+                request.Headers.Add(HttpRequestHeader.AcceptEncoding, "gzip, deflate, br");
+                request.Headers["Accept-Language"] = "zh-CN,zh;q=0.9";
+                request.Method = "GET";
+
+                using (var response = (HttpWebResponse)(await request.GetResponseAsync()))
+                {
+                    using (Stream stream = response.GetResponseStream())
+                    {
+                        using (StreamReader reader = new StreamReader(stream, Encoding.Unicode))
+                        {
+                            page = await reader.ReadToEndAsync();
+                        }
+                    }
+                }
+                request.Abort();
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+            return page;
+        }
         protected async Task<bool> SaveToDB(List<Infomation> list)
         {
             return await dal.AddInfoList(list).ConfigureAwait(continueOnCapturedContext: false);
