@@ -1,41 +1,88 @@
 ﻿using JumbotOA.DBUtility;
+using Microsoft.Extensions.Configuration;
+using SimpleCrawler.DependencyInjection;
 using System;
+using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Text;
+using System.Data;
+using SimpleCrawler.Entity;
+using System.Reflection;
+using System.Collections;
+using System.Threading.Tasks;
 
 namespace SimpleCrawler.DAL
 {
     public class CrawlerDAL
     {
-        static DbHelperSQLP DbHelperSQL = new DbHelperSQLP("");
+        private DbHelperSQLP DbHelperSQL;
+        public  CrawlerDAL(DbHelperSQLP dbHelperSQL) {
+            DbHelperSQL = dbHelperSQL;
+        }
+
+        public int AddInformation(Infomation info)
+        {
+            SqlParameter[] para = new SqlParameter[] {
+                 new SqlParameter("@Title", SqlDbType.NVarChar),
+                 new SqlParameter("@SourceSite", SqlDbType.NVarChar),
+                 new SqlParameter("@PublishDate", SqlDbType.DateTime)
+             };
+            para[0].Value = info.Title;
+            para[1].Value = info.SourceSite;
+            para[2].Value = info.PublishDate;
+            int item_id = 0;
+            try
+            {
+                item_id = DbHelperSQL.ExecuteSqlAsync("insert into information(Title,SourceSite,PublishDate) values(@Title,@SourceSite,@PublishDate)", para).Result;
+            }
+            catch (Exception ex)
+            {
+                //TDLib.Tools.Log.WriteErr("向服务器录入数据：" + ex.Message);
+                //return -1;
+            }
+            return item_id;
+        }
+
+        public async Task<bool> AddInfoList(List<Infomation> list)
+        {
+
+           DataTable dt = ToDataTableTow<Infomation>(list);
+           dt.TableName = "dbo.Information";
+           await DbHelperSQL.InsertByDataTable(dt).ConfigureAwait(false);
+           return true;     
+        }
 
 
-        //public static int InsertItemToTacker()
-        //{
-        //    SqlParameter[] para = new SqlParameter[] {
-        //         new SqlParameter("@Task_ID", SqlDbType.Int),
-        //         new SqlParameter("@Item_URL", SqlDbType.VarChar, 1500),
-        //     };
-        //    para[0].Value = result.Task_ID;
-        //    para[1].Value = task.Brand_ID;
-        //    para[2].Value = result.Url;
+        /// <summary>    
+        /// 将集合类转换成DataTable    
+        /// </summary>    
+        /// <param name="list">集合</param>    
+        /// <returns></returns>    
+        private static DataTable ToDataTableTow<T>(IList<T> list)
+        {
+            DataTable result = new DataTable();
+            if (list.Count > 0)
+            {
+                PropertyInfo[] propertys = list[0].GetType().GetProperties();
 
-
-        //    int item_id = 0;
-        //    try
-        //    {
-        //        //正常
-        //        item_id = int.Parse(.RunProcedureSingle("pr_ImportItemFromCrawlerNEW", para).ToString());
-        //        //极速（pr_ImportItemFromQuickCrawler）
-        //        //item_id = int.Parse(((DBHelperSQL)dbHelperSQL[task.ServerID]).RunProcedureSingle("pr_ImportItemFromQuickCrawler", para).ToString());
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        TDLib.Tools.Log.WriteErr("向服务器录入数据：" + ex.Message);
-        //        return -1;
-        //    }
-        //    return item_id;
-        //}
+                foreach (PropertyInfo pi in propertys)
+                {
+                    result.Columns.Add(pi.Name, pi.PropertyType);
+                }
+                foreach (object t in list)
+                {
+                    ArrayList tempList = new ArrayList();
+                    foreach (PropertyInfo pi in propertys)
+                    {
+                        object obj = pi.GetValue(t, null);
+                        tempList.Add(obj);
+                    }
+                    object[] array = tempList.ToArray();
+                    result.LoadDataRow(array, true);
+                }
+            }
+            return result;
+        }
     }
 }

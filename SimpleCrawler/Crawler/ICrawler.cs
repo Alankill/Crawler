@@ -1,13 +1,16 @@
-﻿using SimpleCrawler.Entity;
+﻿using log4net;
+using SimpleCrawler.Entity;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace SimpleCrawler.Crawler
 {
     public interface ICrawler
     {
-        List<CrawlerTask> TaskList { get; set; }
-        void Start();
+        int CrawlerID { get; }
+        string SiteName { get; set; }
+        Task<string> GetTargetHtmlString();
     }
 }
