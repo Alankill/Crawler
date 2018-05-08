@@ -26,6 +26,7 @@ namespace SimpleCrawler
             {
                 //new CrawlerAction(new GcxxCrawler()),
                 new CrawlerAction(new TYCCrawler())
+                //new CrawlerAction(new SitemapAndBaiduUpdate())
             };
 
             //获取任务 给listCrawler添加任务

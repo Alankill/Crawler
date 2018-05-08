@@ -21,7 +21,7 @@ namespace SimpleCrawler.DAL
             DbHelperSQL = dbHelperSQL;
         }
 
-        public int AddInformation(Infomation info)
+        public int AddInformation(Information info)
         {
             SqlParameter[] para = new SqlParameter[] {
                  new SqlParameter("@Title", SqlDbType.NVarChar),
@@ -44,22 +44,16 @@ namespace SimpleCrawler.DAL
             return item_id;
         }
 
-        public async Task<bool> AddInfoList(List<Infomation> list)
+        public async Task<bool> AddInfoList<T>(List<T> list)
         {
-
-           DataTable dt = ToDataTableTow<Infomation>(list);
-           dt.TableName = "dbo.Information";
+           DataTable dt = ToDataTable<T>(list);
+           dt.TableName = "dbo."+typeof(T).Name;
            await DbHelperSQL.InsertByDataTable(dt).ConfigureAwait(false);
            return true;     
         }
 
-
-        /// <summary>    
-        /// 将集合类转换成DataTable    
-        /// </summary>    
-        /// <param name="list">集合</param>    
-        /// <returns></returns>    
-        private static DataTable ToDataTableTow<T>(IList<T> list)
+   
+        private static DataTable ToDataTable<T>(IList<T> list,string autoCol="ID")
         {
             DataTable result = new DataTable();
             if (list.Count > 0)
@@ -68,18 +62,39 @@ namespace SimpleCrawler.DAL
 
                 foreach (PropertyInfo pi in propertys)
                 {
-                    result.Columns.Add(pi.Name, pi.PropertyType);
+                    if (pi.PropertyType.IsGenericType)
+                    {
+                        if (pi.PropertyType.GetGenericTypeDefinition() == typeof(Nullable<>))
+                        {
+                            if (pi.PropertyType.GetGenericArguments()[0] == typeof(DateTime))
+                            {
+                                result.Columns.Add(pi.Name, pi.PropertyType.GetGenericArguments()[0]);
+                            }
+                        }
+                    }
+                    else
+                        result.Columns.Add(pi.Name, pi.PropertyType);
                 }
                 foreach (object t in list)
                 {
                     ArrayList tempList = new ArrayList();
                     foreach (PropertyInfo pi in propertys)
                     {
-                        object obj = pi.GetValue(t, null);
-                        tempList.Add(obj);
+                        if (pi.Name == autoCol)
+                        {
+                            tempList.Add(null);
+                        }
+                        else
+                        {
+                            object obj = pi.GetValue(t, null);
+                            //if (obj == null)
+                            //    tempList.Add(DBNull.Value);
+                            //else
+                            tempList.Add(obj);
+                        }
                     }
                     object[] array = tempList.ToArray();
-                    result.LoadDataRow(array, true);
+                    result.LoadDataRow(array,true);
                 }
             }
             return result;

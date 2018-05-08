@@ -12,7 +12,7 @@ using System.IO;
 using System.Net.Security;
 using System.Text;
 using System.Collections;
-
+using System.Threading;
 
 namespace SimpleCrawler.Crawler.WebCrawler
 {
@@ -33,10 +33,10 @@ namespace SimpleCrawler.Crawler.WebCrawler
         {
            // Hashtable result =await LoginTYCC();
             string page = string.Empty;
-            await GetResultContent("");
-            //test
+            //await GetResultContent("");
+            ////test
 
-            return page;
+            //return page;
 
             ///test
             try
@@ -142,46 +142,74 @@ namespace SimpleCrawler.Crawler.WebCrawler
             return result;
         }
 
+        Random random = new Random();
         public async override Task<int> GetResultContent(string html)
         {
             //https://static.tianyancha.com/fonts-styles/css/34/343177a3/font.css
             //https://static.tianyancha.com/fonts-styles/fonts/34/343177a3/tyc-num.ttf
             //string cssurl = Regex.Match(html, @"https://static.tianyancha.com/fonts-styles/css\S*?.css").ToString().Replace("css/","fonts/").Replace("font.css", "tyc-num.ttf");
-            string cotent=await RequestByGet("https://static.tianyancha.com/fonts-styles/fonts/34/343177a3/tyc-num.ttf");
-            System.Drawing.
-            System.Drawing..PrivateFontCollection privateFonts = new System.Drawing.Text.PrivateFontCollection();
+            //string cotent=await RequestByGet("https://static.tianyancha.com/fonts-styles/fonts/34/343177a3/tyc-num.ttf");
+            //System.Drawing.
+            //System.Drawing..PrivateFontCollection privateFonts = new System.Drawing.Text.PrivateFontCollection();
             //privateFonts.AddFontFile("C:\\宋体.ttf");
             
 
 
-           Match table = Regex.Match(html, @"class=""b-c-white search_result_container""[\s\S]*?class=""b-c-white clearfix position-rel mb30""");
-            MatchCollection trlist = Regex.Matches(table.ToString(), @"<div data-id=""[\s\S] *?class=""pt15""");
-            Regex titleReg = new Regex(@"=""projectTitle""[\s\S]*?>([\s\S]*?)<");
-            Regex dateReg = new Regex(@"class=""td5""[\s\S]*>([\s\S]*?)</td>");
-            
+            MatchCollection list = Regex.Matches(html, @"<div data-id=""[\s\S]*?class=""pt15""");
+            Regex UrlReg = new Regex(@"href=""([\s\S]*?)""");
+            Regex StateReg = new Regex(@"class=""statusTypeNor in-block f12 in-block vertical-middle ml10 statusType1"">([\s\S]*?)</div>");
+            Regex dateReg = new Regex(@"注册时间[\s\S]*?>([\s\S]*?)</span>");
+
             List<Company> listinfo = new List<Company>();
-            //if (trlist.Count > 0)
-            //{
-            //    foreach (var tr in trlist)
-            //    {
-            //        Match Mtitle = titleReg.Match(tr.ToString());
-            //        Match Mdate = dateReg.Match(tr.ToString());
-            //        Infomation info = new Infomation();
-            //        if (Mtitle.Success == true)
-            //        {
-            //            info.Title = Mtitle.Groups[1].ToString().Trim();
-            //        }
-            //        if (Mdate.Success == true)
-            //        {
-            //            DateTime publishDate;
-            //            DateTime.TryParse(Mdate.Groups[1].ToString().Trim(), out publishDate);
-            //            info.PublishDate = publishDate;
-            //            info.CreateDate = DateTime.Now;
-            //        }
-            //        listinfo.Add(info);
-            //    }
-            //}
-            //await SaveToDB(listinfo);
+            if (list.Count > 0)
+            {
+                foreach (var tr in list)
+                {
+                    Match Murl = UrlReg.Match(tr.ToString());
+                    Match Mstate = StateReg.Match(tr.ToString());
+                    Match Mdate = dateReg.Match(tr.ToString());
+
+                    Company info = new Company();
+                    if (Murl.Success)
+                    {
+                        info.URL = Murl.Groups[1].ToString().Trim();
+                    }
+                    if (Mstate.Success)
+                    {
+                        //info.State =(CompanyState)Enum.Parse(typeof(CompanyState),Mstate.Groups[1].ToString().Trim());
+                        info.State = Mstate.Groups[1].ToString().Trim();
+                    }
+                    if (Mdate.Success)
+                    {
+                        DateTime publishDate;
+                        if (DateTime.TryParse(Mdate.Groups[1].ToString().Trim(), out publishDate))
+                            info.PublishDate = publishDate;
+                    }
+
+                    string detailHtml=await RequestByGet(info.URL);
+                    string area = Regex.Match(detailHtml, @"company_header_width ie9Style position-rel[\s\S]*?class=""ie9Style""").ToString();
+
+                    Match Mname= Regex.Match(area, @"f18 mt0 mb0 in-block vertival-middle sec-c2[\s\S]*?>([\s\S]*?)</h1>");
+                    if (Mname.Success)
+                    {
+                        info.CompanyName = Mname.Groups[1].ToString().Trim();
+                    }
+                    info.Tel = string.Empty;
+                    MatchCollection Mtel = Regex.Matches(area, @"\D(1\d{10})\D|\D(0\d{2,3}-?\d{7,8})\D");
+                    if (Mtel.Count>0)
+                    {
+                        foreach (Match tel in Mtel)
+                        {
+                            info.Tel = info.Tel+tel.Groups[1].ToString().Trim() + ",";
+                        }     
+                    }
+                    info.Tel=info.Tel.TrimEnd(',');
+                    info.CreateDate = DateTime.Now;
+                    listinfo.Add(info);
+                    Thread.Sleep(random.Next(2, 5));
+                }
+            }
+            await SaveToDB(listinfo);
             return listinfo.Count;
         }
 
@@ -202,11 +230,35 @@ namespace SimpleCrawler.Crawler.WebCrawler
 
                 using (var response = (HttpWebResponse)(await request.GetResponseAsync()))
                 {
-                    using (Stream stream = response.GetResponseStream())
+                    if (response.ContentEncoding.ToLower().Contains("gzip"))//解压
                     {
-                        using (StreamReader reader = new StreamReader(stream, Encoding.Unicode))
+                        using (GZipStream stream = new GZipStream(response.GetResponseStream(), CompressionMode.Decompress))
                         {
-                            page = await reader.ReadToEndAsync();
+                            using (StreamReader reader = new StreamReader(stream, Encoding.UTF8))
+                            {
+                                page = await reader.ReadToEndAsync();
+                            }
+                        }
+                    }
+                    else if (response.ContentEncoding.ToLower().Contains("deflate"))//解压
+                    {
+                        using (DeflateStream stream = new DeflateStream(response.GetResponseStream(), CompressionMode.Decompress))
+                        {
+                            using (StreamReader reader = new StreamReader(stream, Encoding.UTF8))
+                            {
+                                page = await reader.ReadToEndAsync();
+                            }
+
+                        }
+                    }
+                    else
+                    {
+                        using (Stream stream = response.GetResponseStream())
+                        {
+                            using (StreamReader reader = new StreamReader(stream, Encoding.UTF8))
+                            {
+                                page = await reader.ReadToEndAsync();
+                            }
                         }
                     }
                 }
@@ -218,7 +270,7 @@ namespace SimpleCrawler.Crawler.WebCrawler
             }
             return page;
         }
-        protected async Task<bool> SaveToDB(List<Infomation> list)
+        protected async Task<bool> SaveToDB(List<Company> list)
         {
             return await dal.AddInfoList(list).ConfigureAwait(continueOnCapturedContext: false);
         }

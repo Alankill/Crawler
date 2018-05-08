@@ -27,23 +27,24 @@ namespace SimpleCrawler.Crawler
             Regex titleReg = new Regex(@"=""projectTitle""[\s\S]*?>([\s\S]*?)<");
             Regex dateReg = new Regex(@"class=""td5""[\s\S]*>([\s\S]*?)</td>");
 
-            List<Infomation> listinfo = new List<Infomation>();
+            List<Information> listinfo = new List<Information>();
             if (trlist.Count > 0)
             {
                 foreach (var tr in trlist)
                 {
                     Match Mtitle = titleReg.Match(tr.ToString());
                     Match Mdate= dateReg.Match(tr.ToString());
-                    Infomation info = new Infomation();
-                    if (Mtitle.Success == true)
+                    Information info = new Information();
+                    if (Mtitle.Success)
                     {
                         info .Title= Mtitle.Groups[1].ToString().Trim();          
                     }
-                    if (Mdate.Success == true)
+                    if (Mdate.Success)
                     {
                         DateTime publishDate;
-                        DateTime.TryParse(Mdate.Groups[1].ToString().Trim(),out publishDate);
+                        if(DateTime.TryParse(Mdate.Groups[1].ToString().Trim(),out publishDate))
                         info.PublishDate = publishDate;
+
                         info.CreateDate = DateTime.Now;
                     }
                     listinfo.Add(info);
@@ -53,7 +54,7 @@ namespace SimpleCrawler.Crawler
             return listinfo.Count;
         }
 
-        protected async Task<bool> SaveToDB(List<Infomation> list)
+        protected async Task<bool> SaveToDB(List<Information> list)
         {
             return await dal.AddInfoList(list).ConfigureAwait(continueOnCapturedContext:false) ;
         }
