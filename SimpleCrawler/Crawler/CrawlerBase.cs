@@ -12,12 +12,20 @@ namespace SimpleCrawler.Crawler
 {
     public class CrawlerBase : ICrawler
     {
+        /// <summary>
+        /// 爬虫id 名称
+        /// </summary>
+        /// <param name="crawlerid"></param>
+        /// <param name="sitename"></param>
         public CrawlerBase(int crawlerid, string sitename)
         {
             CrawlerID = crawlerid;
             SiteName = sitename;
         }
 
+        /// <summary>
+        /// 获取当前爬虫类别
+        /// </summary>
         public Type TypeName{get{ return this.GetType(); }}
 
         public int CrawlerID { get; set; }
@@ -28,10 +36,17 @@ namespace SimpleCrawler.Crawler
         public bool RequireCookie { get; set; } = false;
         public CookieContainer CookiesContainer { get; set; }//定义Cookie容器
 
+        /// <summary>
+        /// 分页逻辑 返回url地址
+        /// </summary>
+        /// <returns></returns>
+        public virtual void GetNextPageUrl(int page) {
+            return null;
+        }
 
 
         /// <summary>
-        /// StartAction,可覆盖添加获取cookie 模拟登录等逻辑,最终返回值为目标页html  返回null或'' throw exception为失败 
+        /// 获取目标页html
         /// </summary>
         /// <returns>html</returns>
         public virtual async Task<string> GetTargetHtmlString()
@@ -55,7 +70,10 @@ namespace SimpleCrawler.Crawler
                 //request.ServicePoint.ConnectionLimit = int.MaxValue;//定义最大连接数
 
                 using (var response = (HttpWebResponse)(await request.GetResponseAsync()))
-                {//获取请求响应
+                {
+                    if (response.StatusCode != HttpStatusCode.OK)
+                        return pageSource;
+
                     if (RequireCookie)
                     {
                         foreach (Cookie cookie in response.Cookies) this.CookiesContainer.Add(cookie);
@@ -104,14 +122,13 @@ namespace SimpleCrawler.Crawler
         }
 
         /// <summary>
-        /// 得到html后处理逻辑,提取数据保存进数据库 -1为不保存
+        /// 处理html,提取数据
         /// </summary>
         /// <param name="html">html</param>
         /// <returns>保存数据条数</returns>
         public async virtual Task<int> GetResultContent(string html)
         {
-
-            return -1;
+            return 0;
         }
 
         public static bool CheckValidationResult(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors errors)

@@ -19,29 +19,27 @@ namespace SimpleCrawler.Crawler.WebCrawler
     public class TYCCrawler : CrawlerBase
     {
         CrawlerDAL dal;
-        
+        private string cookies = string.Empty;
         public TYCCrawler() : base(1002, "天眼查")
         {
             //logger = LoggerManager.GetLogger(GetType());
             dal = AppServiceProvider.ServiceProvider.GetService<CrawlerDAL>();
-            RequestUrl = "https://www.tianyancha.com/";
+            RequestUrl = "https://bj.tianyancha.com/search/ocE-e015-s1-la3";
             CookiesContainer = new CookieContainer();
         }
 
-        private string cookies=string.Empty;
+        public override void GetNextPageUrl(int page)
+        {
+            RequestUrl = "https://bj.tianyancha.com/search/ocE-e015-s1-la3" + "/p"+page.ToString();
+        }
+
         public override async Task<string> GetTargetHtmlString()
         {
            // Hashtable result =await LoginTYCC();
             string page = string.Empty;
-            //await GetResultContent("");
-            ////test
-
-            //return page;
-
-            ///test
             try
             {
-                var request = (HttpWebRequest)WebRequest.Create("https://bj.tianyancha.com/search/ocE-e015-s1-la3");
+                var request = (HttpWebRequest)WebRequest.Create(RequestUrl);
                 request.Headers["Upgrade-Insecure-Requests"] = "1";
                 request.UserAgent = "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36";
                 request.Accept = "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8";
@@ -52,6 +50,9 @@ namespace SimpleCrawler.Crawler.WebCrawler
                     
                 using (var response = (HttpWebResponse)(await request.GetResponseAsync()))
                 {
+                    if (response.StatusCode != HttpStatusCode.OK)
+                        return page;
+
                     if (response.ContentEncoding.ToLower().Contains("gzip"))//解压
                     {
                         using (GZipStream stream = new GZipStream(response.GetResponseStream(), CompressionMode.Decompress))
@@ -91,56 +92,7 @@ namespace SimpleCrawler.Crawler.WebCrawler
                 throw ex;
             }
             return page;
-        }
-
-        public async Task<Hashtable> LoginTYCC()
-        {
-            Hashtable result = new Hashtable();
-            try
-            {
-                ServicePointManager.ServerCertificateValidationCallback = new RemoteCertificateValidationCallback(CheckValidationResult);
-                var request = (HttpWebRequest)WebRequest.Create("https://www.tianyancha.com/cd/login.json");
-                request.Accept = "*/*";
-                request.Headers["Origin"] = "https://www.tianyancha.com";
-                request.Headers["X-Requested-With"] = "XMLHttpRequest";
-                request.UserAgent = "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36";
-                request.ContentType = "application/json; charset=UTF-8";
-                request.Referer = "https://www.tianyancha.com/";
-                request.Headers.Add(HttpRequestHeader.AcceptEncoding, "gzip, deflate, br");
-                request.Headers["Accept-Language"] = "zh-CN,zh;q=0.9";
-                request.Method = "POST";
-                //request.Headers["X-DevTools-Emulate-Network-Conditions-Client-Id"] = "397B5A92473D28ACA939597C38B01DB4";
-
-                string postdata = "{\"mobile\":\"18600805547\",\"cdpassword\":\"ddfd32ac13e64a984e5fc51338025908\",\"loginway\":\"PL\",\"autoLogin\":true}";
-                byte[] postdatabytes = Encoding.GetEncoding("utf-8").GetBytes(postdata);
-                request.ContentLength = postdatabytes.Length;
-                using (Stream stream = await request.GetRequestStreamAsync())
-                {
-                    await stream.WriteAsync(postdatabytes, 0, postdatabytes.Length);
-                    stream.Flush();
-                    stream.Close();
-                }
-
-                using (var response = (HttpWebResponse)(await request.GetResponseAsync()))
-                {//获取请求响应
-
-                    result["cookies"] = response.Headers["Set-Cookie"];
-                    using (Stream stream = response.GetResponseStream())//原始
-                    {
-                        using (StreamReader reader = new StreamReader(stream, Encoding.UTF8))
-                        {
-                            result["result"] =await reader.ReadToEndAsync();
-                        }
-                    }
-                }
-                request.Abort();
-            }
-            catch (Exception ex)
-            {
-                throw ex;
-            }
-            return result;
-        }
+        } 
 
         Random random = new Random();
         public async override Task<int> GetResultContent(string html)
@@ -172,7 +124,10 @@ namespace SimpleCrawler.Crawler.WebCrawler
                     Company info = new Company();
                     if (Murl.Success)
                     {
-                        info.URL = Murl.Groups[1].ToString().Trim();
+                        info.URL = Murl.Groups[1].ToString().Trim();             
+                    }
+                    else {
+                        continue;
                     }
                     if (Mstate.Success)
                     {
@@ -194,6 +149,11 @@ namespace SimpleCrawler.Crawler.WebCrawler
                     {
                         info.CompanyName = Mname.Groups[1].ToString().Trim();
                     }
+                    else
+                    {
+                        Thread.Sleep(random.Next(2, 5));
+                        continue;
+                    }
                     info.Tel = string.Empty;
                     MatchCollection Mtel = Regex.Matches(area, @"\D(1\d{10})\D|\D(0\d{2,3}-?\d{7,8})\D");
                     if (Mtel.Count>0)
@@ -212,7 +172,6 @@ namespace SimpleCrawler.Crawler.WebCrawler
             await SaveToDB(listinfo);
             return listinfo.Count;
         }
-
 
 
         public async Task<string> RequestByGet(string url)
@@ -274,6 +233,53 @@ namespace SimpleCrawler.Crawler.WebCrawler
         {
             return await dal.AddInfoList(list).ConfigureAwait(continueOnCapturedContext: false);
         }
+        public async Task<Hashtable> LoginTYCC()
+        {
+            Hashtable result = new Hashtable();
+            try
+            {
+                ServicePointManager.ServerCertificateValidationCallback = new RemoteCertificateValidationCallback(CheckValidationResult);
+                var request = (HttpWebRequest)WebRequest.Create("https://www.tianyancha.com/cd/login.json");
+                request.Accept = "*/*";
+                request.Headers["Origin"] = "https://www.tianyancha.com";
+                request.Headers["X-Requested-With"] = "XMLHttpRequest";
+                request.UserAgent = "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36";
+                request.ContentType = "application/json; charset=UTF-8";
+                request.Referer = "https://www.tianyancha.com/";
+                request.Headers.Add(HttpRequestHeader.AcceptEncoding, "gzip, deflate, br");
+                request.Headers["Accept-Language"] = "zh-CN,zh;q=0.9";
+                request.Method = "POST";
+                //request.Headers["X-DevTools-Emulate-Network-Conditions-Client-Id"] = "397B5A92473D28ACA939597C38B01DB4";
 
+                string postdata = "{\"mobile\":\"18600805547\",\"cdpassword\":\"ddfd32ac13e64a984e5fc51338025908\",\"loginway\":\"PL\",\"autoLogin\":true}";
+                byte[] postdatabytes = Encoding.GetEncoding("utf-8").GetBytes(postdata);
+                request.ContentLength = postdatabytes.Length;
+                using (Stream stream = await request.GetRequestStreamAsync())
+                {
+                    await stream.WriteAsync(postdatabytes, 0, postdatabytes.Length);
+                    stream.Flush();
+                    stream.Close();
+                }
+
+                using (var response = (HttpWebResponse)(await request.GetResponseAsync()))
+                {//获取请求响应
+
+                    result["cookies"] = response.Headers["Set-Cookie"];
+                    using (Stream stream = response.GetResponseStream())//原始
+                    {
+                        using (StreamReader reader = new StreamReader(stream, Encoding.UTF8))
+                        {
+                            result["result"] = await reader.ReadToEndAsync();
+                        }
+                    }
+                }
+                request.Abort();
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+            return result;
+        }
     }
 }

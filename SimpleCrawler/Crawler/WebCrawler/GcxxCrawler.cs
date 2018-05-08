@@ -37,7 +37,11 @@ namespace SimpleCrawler.Crawler
                     Information info = new Information();
                     if (Mtitle.Success)
                     {
-                        info .Title= Mtitle.Groups[1].ToString().Trim();          
+                        info.Title = Mtitle.Groups[1].ToString().Trim();
+                    }
+                    else
+                    {
+                        continue;
                     }
                     if (Mdate.Success)
                     {

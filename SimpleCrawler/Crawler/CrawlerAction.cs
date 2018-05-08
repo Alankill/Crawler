@@ -29,34 +29,72 @@ namespace SimpleCrawler.Crawler
             CrawlerType = crawler.TypeName.Name;
         }
 
-        //抓取的任务列表
+        /// <summary>
+        /// 当前线程爬虫类别ID
+        /// </summary>
+        public int CrawlerID{get{ return WebCrawler.CrawlerID; } }
+
+        /// <summary>
+        /// 分配给爬虫任务
+        /// </summary>
         public List<CrawlerTask> TaskList { get; set; } = new List<CrawlerTask>();
 
         public async void Start()
         {
-            var watch = new Stopwatch();
-            watch.Start();
-            Console.WriteLine($"----------线程id:{Thread.CurrentThread.ManagedThreadId}-----开始任务:{CrawlerType+"--"+TaskList[0].TaskName}----------------------------");
-            try
+            if (TaskList.Count > 0)
             {
-                string html = await WebCrawler.GetTargetHtmlString();
-                if (!string.IsNullOrWhiteSpace(html))
+                try
                 {
-                    int count =await WebCrawler.GetResultContent(html);
-                    watch.Stop();
-                    var milliseconds = watch.ElapsedMilliseconds;//获取请求执行时间
-                    Console.WriteLine($"----------线程id:{Thread.CurrentThread.ManagedThreadId}-----结束任务:{CrawlerType+"--"+TaskList[0].TaskName},共采集{count}条数据,用时:{milliseconds}----------------------------");
-                    logger.Info($"{CrawlerType}共采集{count}条数据,用时:{milliseconds}");
+                    var watch = new Stopwatch();
+                    for (int i = 0; i < TaskList.Count;i++)
+                    {
+                        CrawlerTask task = TaskList[i];
+                        try
+                        {
+                            string taskname = task.TaskName;
+                            restart: watch.Restart();
+                            if (task.NeedNext)
+                                taskname = task.TaskName + $"(分页{task.StartPage})";
+
+                            Console.WriteLine($"----------------------开始任务:{CrawlerType + "--" + taskname}----------------------------");
+                            string html = await WebCrawler.GetTargetHtmlString();
+                            if (!string.IsNullOrWhiteSpace(html))
+                            {
+                                int count = await WebCrawler.GetResultContent(html);
+                                watch.Stop();
+                                if (count <= 0)
+                                {
+                                    Console.WriteLine($"---------------结束任务{CrawlerType + "--" + taskname}:没有匹配的数据---------------");
+                                    logger.Warn($"结束任务{CrawlerType + "--" + taskname}:没有匹配的数据");
+                                    break;
+                                }
+                                var milliseconds = watch.ElapsedMilliseconds;
+                                Console.WriteLine($"----------------------{CrawlerType + "--" + taskname},共采集{count}条数据,用时:{milliseconds}----------------------------");
+                                logger.Info($"{CrawlerType + "--" + taskname}共采集{count}条数据,用时:{milliseconds}");
+                                if (task.NeedNext && task.StartPage < task.EndPage)
+                                {
+                                    WebCrawler.GetNextPageUrl(task.StartPage++);
+                                    goto restart;
+                                }
+                            }
+                            else
+                            {
+                                Console.WriteLine($"---------------结束任务{CrawlerType + "--" + taskname}:目标地址html获取失败---------------");
+                                logger.Warn($"结束任务{CrawlerType + "--" + taskname}:目标地址html获取失败");
+                                break;
+                            }
+                        }
+                        catch (Exception ex) {
+                            Console.WriteLine($"{CrawlerType + "--" + task.TaskName} 异常结束任务   " + ex.ToString());
+                            logger.Error($"{CrawlerType + "--" + task.TaskName} 异常结束任务   " + ex.ToString());
+                        }
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    Console.WriteLine($"---------------结束任务--{CrawlerType}:目标地址html获取失败---------------");
-                    logger.Warn("目标地址html获取失败");
+                    Console.WriteLine($"{CrawlerType} 异常结束任务" + ex.ToString());
+                    logger.Error(ex.ToString());
                 }
-            }
-            catch(Exception ex){
-                Console.WriteLine($"{CrawlerType} 异常结束任务" + ex.ToString());
-                logger.Error(ex.ToString());
             }
         }
     }

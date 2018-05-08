@@ -29,11 +29,18 @@ namespace SimpleCrawler
                 //new CrawlerAction(new SitemapAndBaiduUpdate())
             };
 
-            //获取任务 给listCrawler添加任务
-            CrawlerTask task = new CrawlerTask { ID = 1, TaskName = "招标信息抓取" };
+            List<CrawlerTask> tasklist =new List<CrawlerTask>() {
+                //new CrawlerTask { CrawlerID = 1001, TaskName = "招标信息抓取" },
+                new CrawlerTask { CrawlerID = 1002, TaskName = "公司信息抓取",NeedNext=true,StartPage=1,EndPage=2 }
+            };
+
             foreach (var c in listCrawler)
             {
-                c.TaskList.Add(task);
+                foreach (var t in tasklist)
+                {
+                    if (c.CrawlerID==t.CrawlerID)
+                        c.TaskList.Add(t);
+                }
             }
 
             Parallel.ForEach(listCrawler, (c, state) =>
@@ -43,6 +50,10 @@ namespace SimpleCrawler
             Console.ReadLine();
         }
 
+        /// <summary>
+        /// 注入服务
+        /// </summary>
+        /// <param name="services"></param>
         public void ConfigureServices(IServiceCollection services)
         {
             //services.AddSingleLogServiceCollectionExtensions();
