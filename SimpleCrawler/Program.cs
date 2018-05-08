@@ -25,13 +25,15 @@ namespace SimpleCrawler
             List<CrawlerAction> listCrawler = new List<CrawlerAction>()
             {
                 //new CrawlerAction(new GcxxCrawler()),
-                new CrawlerAction(new TYCCrawler())
+                //new CrawlerAction(new TYCCrawler())
                 //new CrawlerAction(new SitemapAndBaiduUpdate())
+                new CrawlerAction(new TianYanCrawler())
             };
 
             List<CrawlerTask> tasklist =new List<CrawlerTask>() {
                 //new CrawlerTask { CrawlerID = 1001, TaskName = "招标信息抓取" },
-                new CrawlerTask { CrawlerID = 1002, TaskName = "公司信息抓取",NeedNext=true,StartPage=1,EndPage=2 }
+                //new CrawlerTask { CrawlerID = 1002, TaskName = "公司信息抓取",NeedNext=true,StartPage=1,EndPage=2 },
+                new CrawlerTask { CrawlerID = 1003, TaskName = "招标信息抓取" }
             };
 
             foreach (var c in listCrawler)
@@ -42,7 +44,7 @@ namespace SimpleCrawler
                         c.TaskList.Add(t);
                 }
             }
-
+            //问题  批量插入忽略唯一索引错误
             Parallel.ForEach(listCrawler, (c, state) =>
              {
                  c.Start();

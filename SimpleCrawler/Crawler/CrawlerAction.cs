@@ -73,7 +73,8 @@ namespace SimpleCrawler.Crawler
                                 logger.Info($"{CrawlerType + "--" + taskname}共采集{count}条数据,用时:{milliseconds}");
                                 if (task.NeedNext && task.StartPage < task.EndPage)
                                 {
-                                    WebCrawler.GetNextPageUrl(task.StartPage++);
+                                    Thread.Sleep(5000);
+                                    WebCrawler.GetNextPageUrl(++task.StartPage);
                                     goto restart;
                                 }
                             }
@@ -88,6 +89,7 @@ namespace SimpleCrawler.Crawler
                             Console.WriteLine($"{CrawlerType + "--" + task.TaskName} 异常结束任务   " + ex.ToString());
                             logger.Error($"{CrawlerType + "--" + task.TaskName} 异常结束任务   " + ex.ToString());
                         }
+                        Thread.Sleep(5000);
                     }
                 }
                 catch (Exception ex)

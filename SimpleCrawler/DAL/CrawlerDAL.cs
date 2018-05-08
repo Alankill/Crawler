@@ -53,13 +53,19 @@ namespace SimpleCrawler.DAL
         }
 
    
+        /// <summary>
+        /// 基础属性映射成表
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="list"></param>
+        /// <param name="autoCol"></param>
+        /// <returns></returns>
         private static DataTable ToDataTable<T>(IList<T> list,string autoCol="ID")
         {
             DataTable result = new DataTable();
             if (list.Count > 0)
             {
                 PropertyInfo[] propertys = list[0].GetType().GetProperties();
-
                 foreach (PropertyInfo pi in propertys)
                 {
                     if (pi.PropertyType.IsGenericType)

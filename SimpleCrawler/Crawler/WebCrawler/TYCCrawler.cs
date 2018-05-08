@@ -151,7 +151,7 @@ namespace SimpleCrawler.Crawler.WebCrawler
                     }
                     else
                     {
-                        Thread.Sleep(random.Next(2, 5));
+                        Thread.Sleep((random.Next(2, 5)) * 1000);
                         continue;
                     }
                     info.Tel = string.Empty;
@@ -166,7 +166,7 @@ namespace SimpleCrawler.Crawler.WebCrawler
                     info.Tel=info.Tel.TrimEnd(',');
                     info.CreateDate = DateTime.Now;
                     listinfo.Add(info);
-                    Thread.Sleep(random.Next(2, 5));
+                    Thread.Sleep((random.Next(2, 5))*1000);
                 }
             }
             await SaveToDB(listinfo);

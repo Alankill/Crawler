@@ -41,7 +41,6 @@ namespace SimpleCrawler.Crawler
         /// </summary>
         /// <returns></returns>
         public virtual void GetNextPageUrl(int page) {
-            return null;
         }
 
 
